@@ -274,4 +274,38 @@
 
 ---
 
-（Day 3 起新决策按 D-018、D-019 …继续追加）
+## D-018 · 前端打字机用前端 setInterval"假流式"，不做真 SSE 流式（Day 3）
+
+- **决策**：后端 `/game/sessions/{id}/turn` 仍是同步 JSON 响应，前端拿到完整 narration 后用 `setInterval` 每 30ms 加一个字渲染
+- **备选**：
+  - A. 真 SSE 流式（OpenAI 兼容 API 都支持 stream=True，FastAPI 用 StreamingResponse）
+  - B. （选中）前端假流式
+- **理由**：
+  - **关键**：LLM 输出是 **结构化 JSON**（含 narration、options、state_diff），必须等 `}` 完全到达才能解析。哪怕真流式拿到 token，前端也得 buffer 到 JSON 完整才能 split 出 narration——首字延迟根本不会更短
+  - 真流式需要改 LLMClient.stream() / 后端 SSE 路由 / 前端 EventSource，工程量大
+  - 玩家体感"打字机感"在前端 setInterval 已经完整提供
+  - 这是个**反例**：技术选型不为"看起来现代"，看是否真带来 UX 收益
+- **什么情况下改**：
+  - 改 prompt 格式为 "先 narration 自由文本，再 `<state_diff>...` 标签结构化" → 那时 narration 部分真流式有意义
+  - 玩家投诉首字慢 → 优先优化 LLM 端的 P50 延迟，而不是上 SSE
+
+---
+
+## D-019 · 前端栈选择：Vite + React + fetch（最小依赖原则）
+
+- **决策**：Vite + React 18 + TypeScript + React Router v6 + Tailwind + fetch（**不上 Next.js / 不上 axios / 不上 Redux**）
+- **备选**：
+  - A. Next.js + axios + Zustand（更"主流"的栈）
+  - B. （选中）Vite + React + fetch + useState
+- **理由**：
+  - 3 页面 SPA，**不需要** SSR/SSG/路由约定/API Routes——Next.js 的核心价值全用不到
+  - Vite dev server 启动快 5-10 倍（HMR 极快，开发体验更好）
+  - fetch 已经是浏览器原生，不需要 axios 这一层封装；自己写 ~30 行 ApiError + request() 已经够用（DECISIONS D-006 同源理念："自写薄抽象"）
+  - 状态全部 useState + localStorage（JWT）足够，跨页面共享状态需求为零
+- **什么情况下改**：
+  - 需要 SEO（公开内容页）→ 评估 Next.js
+  - 状态复杂度上升（实时对战 / WebSocket 频道）→ 评估 Zustand
+
+---
+
+（Day 4 起新决策按 D-020、D-021 …继续追加）

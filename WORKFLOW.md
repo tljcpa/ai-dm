@@ -196,11 +196,86 @@ Day 2 加 Zhipu Provider 时只用了 5 分钟——因为接口已定。
 
 ---
 
-## 后续 Day 3-7 计划
+## Day 3 工作流回顾
 
-- Day 3：前端 React + SSE 流式 + 3 个页面（登录/注册/游戏）
-- Day 4：存档系统打磨（多 session 列表 / 切换 / 删除）+ 可选 RAG
+### 这一天发生了什么
+
+1. **wly 决定继续不休息**（Day 2 完成后立即进 Day 3）
+2. **不用 vite create**：手写所有配置文件，每个文件都能向 wly 解释
+3. **前端栈定型**：Vite + React + TS + Tailwind + fetch + React Router v6
+4. **3 页面架构**：Auth（登录+注册一页两 tab） / Game（主页）/ App（路由）
+5. **打字机决策反转**：从 plan 写的"SSE 流式"改为"前端 setInterval 假流式"（D-018）—— 因为 LLM 输出是 JSON 结构，必须完整解析才有 narration
+6. **API 客户端封装**：~30 行的 fetch 薄封装，比 axios 更可控
+7. **冒烟测试三层**：vite build / vite dev / proxy 链路全部 PASS
+
+### Day 3 的关键判断
+
+**判断 1：不用 vite create**
+- vite create 是交互式，CC 不便操作
+- 手写配置让每个文件能逐行讲清楚（面试演示）
+- 12 个文件 ~700 行代码 + 配置
+
+**判断 2：打字机不真流式（反 plan 的决策）**
+- Plan 原本写"SSE 流式"
+- 但发现 LLM 输出是 JSON 结构，真流式不会让首字更快
+- 主动改 plan、记 D-018——这是工程判断力的体现，不是盲从 plan
+
+**判断 3：不上 Next.js / axios / Redux**
+- 3 页面 SPA 用不到 Next.js 的核心价值
+- "最小依赖原则"：每多一个依赖要回答"它解决了什么 fetch/useState 解决不了的问题"
+- D-019 记录
+
+**判断 4：本机不测 UI，等部署后测**
+- 本机无 GUI 浏览器，SSH tunnel 是可行但需要 wly 自己操作
+- vite build 通过 + TS 干净 + proxy 链路验证已能保证代码层无问题
+- 真实 UI 测试推迟到 Day 5 部署后（公网浏览器一站式测）
+
+### CC 在 Day 3 的表现观察
+
+- **优点**：12 个文件并行写完、TS 类型一次通过 0 错误、Tailwind class 命名规范、组件粒度合理（ChatBlock / PlayerPanel / Stat / Bar 分得清）
+- **可改进**：第一版 Game.tsx 把所有 state 都放在主组件，没有进一步抽 Context——可接受（3 页面 SPA 不需要）
+- **教训**：CC 在写前端时 import 顺序、类型定义、props 接口都做得很好；但需要 wly 反复提醒"打字机是假流式不是真 SSE"，否则它会自动尝试真 SSE
+
+### Day 3 实测数据
+
+| 维度 | 数据 |
+|---|---|
+| vite build 模块数 | 37 modules |
+| 产物大小 | 172 KB JS（56 KB gzip）/ 10 KB CSS |
+| TS 类型错误 | 0 |
+| 前端→后端 proxy 链路 | /api/health / register / login / me 全 PASS |
+| npm install 时间 | 16s（137 包） |
+| 文件数 | 12 个源文件（不含 node_modules） |
+
+---
+
+## 用 CC 的几个具体技巧（Day 3 新增）
+
+### 技巧 9：先 build 烟雾测试，再 dev 实测
+
+`npm run build` 用 tsc 严格检查 + Vite 编译——一次性发现所有 TS 错误、缺失 import、类型不匹配。
+比起逐个页面打开看 console 错误，build 一次能找出 90% 的代码层问题。
+
+### 技巧 10：plan 不是圣经，发现错就当场改
+
+Plan 原本写"SSE 流式"，但实施时发现 JSON 结构注定真流式无 UX 收益。
+反 plan 不是叛逆，是把"理解深度"赶超"原始决策"——并在 DECISIONS.md 记录 why。
+**面试时这是最值钱的能力：知道何时坚持计划、何时改计划**。
+
+### 技巧 11：组件粒度按"复用 + 可读性"切，不按文件大小
+
+Game.tsx 有 ~350 行，里面有 4 个内部组件（ChatBlock / PlayerPanel / Stat / Bar）。
+是否要拆成 4 个独立文件？答案：**不**——这些组件只在 Game 页面用，拆出去反而增加 import 噪音。
+**反例**：教科书式"每个组件一个文件"——在小项目里是过度工程化。
+
+---
+
+## 后续 Day 4-7 计划
+
+- Day 4：存档系统打磨（多 session 列表 ✓ 已做 / 切换 ✓ 已做 / 删除 ✓ 已做）+ 可选 RAG
+  - 实际上 Day 3 前端已经实现了存档列表 / 切换 / 删除——Day 4 主要做 RAG 或质量打磨
 - Day 5：部署上线（systemd + Nginx + certbot + 服务器现状已探测）
+  - 含真实 UI 浏览器测试
 - Day 6：这份文档的最终版 + Demo 录屏（含"现场用 CC 加功能"）
 - Day 7：简历描述 + 30 分钟讲述脚本 + 20 条 Q&A 预案
 
