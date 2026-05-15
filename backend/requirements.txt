@@ -22,3 +22,4 @@ openai==1.58.1
 python-dotenv==1.0.1
 python-multipart==0.0.20
 numpy>=1.21,<2  # 本机 Python 3.10 拿到 1.26+，服务器 Python 3.8 拿到 1.24.x（功能足够）
+loguru>=0.7

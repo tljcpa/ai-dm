@@ -1,0 +1,4 @@
+# 仅开发/CI 使用，不部署到生产
+-r requirements.txt
+pytest>=8.0
+pytest-asyncio>=0.23
