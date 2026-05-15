@@ -383,4 +383,20 @@
 
 ---
 
-（Day 6 起新决策按 D-024、D-025 …继续追加）
+## D-024 · 自动化测试 + CI（Day 6）
+
+- **决策**：pytest 单元测试 30 个 + RAG 召回率 eval + GitHub Actions Python 3.8/3.10 矩阵
+- **理由**：
+  - 简历看 GitHub 第一眼看到 ✅ CI badge + tests/ 目录是硬通货
+  - 测试中**真的发现了 5 天没暴露的 safety.py 正则 bug**（`作为(一个)?(AI)` 不允许空格）—— 这是测试的核心价值
+  - Python 3.8/3.10 双矩阵是 D-022 兼容性的持续保险
+- **测试设计原则**：
+  - 不测覆盖率，测**LLM 真实可能产生的输出边界**（带空格 / 混排 JSON / 损坏字符串）
+  - mock LLM 用于 parse 三层兜底（不用真 API）
+  - RAG eval 需要真 API → 标记 `requires_api` + skipif，CI 跳过
+- **实测**：30/30 PASS，RAG top-1 召回率 80%（8/10）
+- **什么情况下改**：加更多边界 / mock 真实 LLM 行为 / RAG 加 top-3 覆盖率评估
+
+---
+
+（Day 7 起新决策按 D-025、D-026 …继续追加）

@@ -433,10 +433,85 @@ certbot / nodejs / python / docker 这类快速演进的工具，Ubuntu LTS 仓�
 
 ---
 
-## 后续 Day 6-7 计划
+## Day 6 工作流（质量打磨：自动化测试 + RAG eval + CI）
 
-- Day 6：录 3-5 分钟 demo 视频（含"现场用 CC 加功能"杀招）+ WORKFLOW.md 终稿
-- Day 7：简历项目描述（4-6 行）+ 30 分钟讲述脚本 + 20 条 Q&A 预案
+### 这一天发生了什么
+
+应 wly 要求做"项目改进 4 选 3"——砍掉 NPC dont_do 违反检测（产品价值低 + 复杂度高），专注高 ROI 三条：
+1. **pytest 单元测试套件**：30 个测试覆盖 safety / state / parse
+2. **RAG 召回率 eval**：10 个 ground truth 跑出真实 80% 数字
+3. **GitHub Actions CI**：Python 3.8 + 3.10 双矩阵自动跑测试
+
+### 关键产出
+
+| 文件 | 作用 |
+|---|---|
+| `backend/pytest.ini` | pytest 配置 + requires_api 标记 |
+| `backend/requirements-dev.txt` | dev 依赖（pytest 等），生产不装 |
+| `backend/tests/conftest.py` | sys.path 注入让 import 找到 backend 模块 |
+| `backend/tests/test_safety.py` | 14 个测试覆盖越狱防御 L1+L3 |
+| `backend/tests/test_state.py` | 10 个测试覆盖游戏状态 / apply_diff 边界 |
+| `backend/tests/test_parse.py` | 6 个测试覆盖结构化输出三层兜底（含 mock LLM）|
+| `backend/tests/test_rag_eval.py` | RAG 召回率评估（标记 requires_api，CI 跳过）|
+| `.github/workflows/test.yml` | Py 3.8 + 3.10 矩阵 CI |
+
+### Day 6 实测数据（面试硬核材料）
+
+| 指标 | 数字 |
+|---|---|
+| 单元测试 | **30/30 通过**（safety 14 + state 10 + parse 6）|
+| RAG Top-1 召回率 | **80%（8/10）** —— 真实数据，不是编的 |
+| 测试中发现的真 bug | 1 个（safety.py 正则 `作为(一个)?(AI)` 不允许中文空格）|
+| 测试运行时间 | 单元 0.17s / RAG eval 13.7s（含真实智谱嵌入）|
+| CI 矩阵 | Python 3.8（服务器同版本）+ 3.10（本机同版本）|
+
+### Day 6 的关键判断
+
+**判断 1：测试中发现 bug 比测试覆盖率本身更值钱**
+`作为(一个)?(AI)` 在生产 5 天没被触发——LLM 当前没有真泄露 AI 身份。
+但写测试时我用了 "作为 一个 AI"（带空格）这种 LLM 真实可能的输出，正则失效。
+**面试讲点**：测试不是为了"完美绿勾"，是为了"未触发的潜在 bug 提前暴露"。
+
+**判断 2：RAG 召回率 80% 已经够好，但 miss 分析更重要**
+两个 miss 都不是"模型不行"，是 ground truth 本身有语义歧义。
+**改进方向（写进 README 但不实施）**：top-3 覆盖率评估 / chunking 优化 / 改 ground truth 用"非歧义" query。
+
+**判断 3：CI 跑 Python 3.8 + 3.10 双矩阵**
+直接对应 D-022（Python 3.8 兼容问题）——每次 push 自动验证两个版本都通过。
+**反例**：只跑本机 Python 3.10，下次有人提 PR 用了 3.10+ 语法又会翻车。
+
+### CC 在 Day 6 的表现观察
+
+- **优点**：一次性写出 30 个 pytest 测试 + RAG eval + CI workflow，全部一次跑过（除 1 个真 bug）
+- **关键事件**：测试发现 safety.py bug 后 5 秒诊断 + 1 行 regex 修复
+- **教训**：测试要用"LLM 真实可能产生的输出"（带空格、混排等），不是"我觉得 LLM 会怎么写"
+
+---
+
+## 用 CC 的几个具体技巧（Day 6 新增）
+
+### 技巧 17：测试是"暴露未触发 bug"的工具，不是"覆盖率指标"
+
+CC 写测试时容易写"覆盖代码路径"。但更值钱的是测试**真实 LLM 输出的边界 case**：
+- 带 Unicode 空格的字符串
+- 混杂前后文的 JSON
+- 损坏但能 regex 抢救的输出
+本项目 Day 6 因为测了真实场景的 "作为 一个 AI"，发现了 5 天没暴露的正则 bug。
+
+### 技巧 18：CI 矩阵跑多 Python 版本是 D-022 兼容性的"持续保险"
+
+Day 5 因为 Python 3.8 vs 3.10 差异翻车一次。
+Day 6 CI 矩阵让这类 bug 不会再悄悄回来——每次 push 都验证。
+**这是 AI Native 工作流的一部分**：让基础设施帮你 catch 你自己（和 CC）的错。
+
+---
+
+## 后续 Day 7 计划
+
+- 简历项目描述（4-6 行）
+- 30 分钟讲述脚本（按 5 个亮点 + 工作流 + 部署 顺序）
+- 20 条 Q&A 预案（按面试官追问类型分组）
+- Demo 视频录制（可选，3-5 分钟）
 
 ---
 
