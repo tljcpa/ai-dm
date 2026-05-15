@@ -111,7 +111,7 @@ OUTPUT_LEAK_PATTERNS = [
     # 泄露 system prompt 元信息
     (re.compile(r"system\s*prompt|我的(指令|规则|系统提示|prompt)|按照(系统)?指令", re.IGNORECASE),
      "leak_system_meta"),
-    (re.compile(r"作为(一个)?(AI|人工智能|语言模型|助手|chatbot|聊天机器人|deepseek|claude|gpt)", re.IGNORECASE),
+    (re.compile(r"作为\s*(一个)?\s*(AI|人工智能|语言模型|助手|chatbot|聊天机器人|deepseek|claude|gpt)", re.IGNORECASE),
      "leak_ai_identity"),
     (re.compile(r"我是\s*(deepseek|claude|gpt|openai|anthropic)", re.IGNORECASE),
      "leak_model_name"),
