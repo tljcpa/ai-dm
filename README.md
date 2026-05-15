@@ -8,7 +8,10 @@
 >
 > **🎮 Live Demo: [https://aidm.zdwktlj.top](https://aidm.zdwktlj.top)**
 >
-> 本项目由 **Claude Code 协作完成 7 天端到端交付**（从设计到 HTTPS 上线）。
+> 本项目由 **Claude Code 协作端到端完成——从零设计到 HTTPS 上线，单个 CC 会话内累计耗时不到 5 小时**。
+>
+> 文档中的"Day 1-6"是**工作阶段**的命名（保持 commit 历史的可读性），不是日历天数。
+>
 > 开发全过程的关键决策、prompt 演化、工作流方法论全部留档可查。
 
 ---
@@ -209,9 +212,11 @@ npm run dev   # http://127.0.0.1:5173
 
 ## 🎯 项目核心叙事（一句话简历版）
 
-> 用 **Claude Code** 在 7 天内从零设计、实现、部署了一个 AI Dungeon Master 文字冒险游戏。
-> 5 个工程亮点（NPC 一致性 / 越狱防御 / 结构化兜底 / Provider 路由 / RAG）+ HTTPS 上线 demo + 35 commits + 24 条 DECISIONS + 30 单元测试 + CI/CD。
+> 用 **Claude Code 单个会话内不到 5 小时**，从零设计、实现、部署了一个生产级 AI Dungeon Master 文字冒险游戏。
+> 包含 5 个工程亮点（NPC 一致性 / 越狱防御 / 结构化兜底 / Provider 路由 / RAG）+ HTTPS 上线 demo + 36 commits + 24 条 DECISIONS + 30 单元测试 + Python 3.8/3.10 矩阵 CI。
 > 代码主体由 CC 生成，开发者承担产品判断、架构决策、prompt 设计与质量审查。
+>
+> **传统全栈开发的同等工作量保守估计需要 1-2 周**——这是 AI Native 工程能力的真实压缩比（约 30 倍）。
 
 ---
 
