@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    @apply h-full;
+    font-family: "Noto Serif SC", "Source Han Serif SC", serif;
+  }
+  #root {
+    @apply h-full;
+  }
+}
+
+/* 打字机的光标 */
+@layer utilities {
+  .cursor-blink::after {
+    content: "▍";
+    animation: blink 0.9s steps(2) infinite;
+    color: rgba(245, 230, 200, 0.6);
+    margin-left: 2px;
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+}
