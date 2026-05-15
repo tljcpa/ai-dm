@@ -17,7 +17,7 @@ import json
 import random
 import re
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -209,7 +209,7 @@ class MockLLMClient(LLMClient):
 class TurnResult(BaseModel):
     """一回合给前端的结果。"""
     narration: str
-    options: list[str] = Field(default_factory=list)
+    options: List[str] = Field(default_factory=list)
     state: GameState  # 应用 diff 后的完整新状态
 
 
@@ -225,7 +225,7 @@ _FIX_SYSTEM_PROMPT = """你是一个 JSON 修正器。任务：把用户给的�
 4. 不要改变原文本表达的剧情意图，只修语法错误"""
 
 
-def parse_llm_output(raw: str) -> tuple[str, list[str], StateDiff]:
+def parse_llm_output(raw: str) -> Tuple[str, List[str], StateDiff]:
     """
     L1：第一层解析，直接 json.loads + Pydantic 验证。
     失败抛异常，上层捕获后进入 L2。
@@ -238,7 +238,7 @@ def parse_llm_output(raw: str) -> tuple[str, list[str], StateDiff]:
     return narration, options, state_diff
 
 
-def heuristic_parse(raw: str) -> tuple[str, list[str], StateDiff]:
+def heuristic_parse(raw: str) -> Tuple[str, List[str], StateDiff]:
     """
     L3：启发式抢救。
     步骤：
@@ -270,7 +270,7 @@ def heuristic_parse(raw: str) -> tuple[str, list[str], StateDiff]:
 def parse_with_fallback(
     raw: str,
     llm: LLMClient,
-) -> tuple[str, list[str], StateDiff, str]:
+) -> Tuple[str, List[str], StateDiff, str]:
     """
     三层解析。
     返回：(narration, options, state_diff, parse_level)

@@ -13,7 +13,8 @@
 """
 
 from datetime import datetime, timedelta
-from typing import Annotated
+# Annotated 在 Python 3.9+ 才进 typing 标准库；为兼容服务器的 Python 3.8 从 typing_extensions 引入
+from typing_extensions import Annotated
 
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status

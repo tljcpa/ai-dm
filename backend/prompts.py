@@ -18,7 +18,7 @@
 import json
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from state import GameState
 
@@ -98,7 +98,7 @@ def format_npc_card_for_prompt(card: dict) -> str:
     return "\n".join(lines)
 
 
-def build_dm_prompt(state: GameState, user_input: str) -> tuple[str, str]:
+def build_dm_prompt(state: GameState, user_input: str) -> Tuple[str, str]:
     """
     构造给 LLM 的 (system_prompt, user_message) 二元组。
 
@@ -186,7 +186,7 @@ SUMMARIZE_SYSTEM_PROMPT = """你是一个游戏剧情摘要员。任务：把游
 5. 直接输出摘要文本，不要任何前缀（不要"摘要:"之类）"""
 
 
-def build_summary_prompt(state: GameState) -> tuple[str, str]:
+def build_summary_prompt(state: GameState) -> Tuple[str, str]:
     """构造摘要任务的 (system, user) prompt。"""
     history_lines = []
     for turn in state.recent_history:

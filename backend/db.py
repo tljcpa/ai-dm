@@ -9,7 +9,7 @@
 """
 
 from datetime import datetime
-from typing import Generator
+from typing import Generator, List
 
 from sqlalchemy import ForeignKey, String, Text, create_engine
 from sqlalchemy.orm import (
@@ -40,7 +40,7 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     # 一个用户多个存档
-    sessions: Mapped[list["GameSession"]] = relationship(
+    sessions: Mapped[List["GameSession"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 

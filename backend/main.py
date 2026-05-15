@@ -11,7 +11,10 @@ FastAPI 应用主入口
   生产: uvicorn main:app --host 0.0.0.0 --port 9001 --workers 1
 """
 
-from typing import Annotated, List, Optional
+from typing import List, Optional
+# Annotated 在 Python 3.9+ 才进 typing 标准库；为兼容服务器的 Python 3.8 从 typing_extensions 引入
+# typing_extensions 由 pydantic 自动依赖，无需额外装
+from typing_extensions import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
