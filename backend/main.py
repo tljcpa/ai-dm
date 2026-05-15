@@ -11,7 +11,7 @@ FastAPI 应用主入口
   生产: uvicorn main:app --host 0.0.0.0 --port 9001 --workers 1
 """
 
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,7 +21,15 @@ from sqlalchemy.orm import Session
 import auth
 from config import settings
 from db import GameSession, User, get_db, init_db
-from engine import DeepseekProvider, MockLLMClient, play_turn, set_llm_client
+from engine import (
+    DeepseekProvider,
+    LLMClient,
+    LLMRouter,
+    MockLLMClient,
+    ZhipuProvider,
+    play_turn,
+    set_llm_client,
+)
 from state import GameState, default_state
 
 
@@ -52,23 +60,42 @@ def on_startup():
     _select_llm_client()
 
 
+def _build_provider(name: str) -> Optional[LLMClient]:
+    """
+    根据名字构造单个 Provider 实例。
+    没有对应 API key 时返回 None。
+    """
+    name = name.lower()
+    if name == "deepseek" and settings.DEEPSEEK_API_KEY:
+        return DeepseekProvider(api_key=settings.DEEPSEEK_API_KEY, model=settings.DEFAULT_DEEPSEEK_MODEL)
+    if name == "zhipu" and settings.ZHIPU_API_KEY:
+        return ZhipuProvider(api_key=settings.ZHIPU_API_KEY, model=settings.DEFAULT_ZHIPU_MODEL)
+    if name == "mock":
+        return MockLLMClient()
+    return None
+
+
 def _select_llm_client():
     """
-    根据 settings.DEFAULT_LLM_PROVIDER 选择 LLM client。
-    Day 2 这里会变成"多 provider 路由器"，目前先实现单选。
+    根据 settings.LLM_PRIMARY / LLM_BACKUP 构造 LLMRouter。
+    Provider 构造失败（如 API key 缺失）时回退到 MockLLMClient。
     """
-    provider = settings.DEFAULT_LLM_PROVIDER.lower()
-    if provider == "deepseek" and settings.DEEPSEEK_API_KEY:
-        client = DeepseekProvider(
-            api_key=settings.DEEPSEEK_API_KEY,
-            model=settings.DEFAULT_DEEPSEEK_MODEL,
-        )
-        print(f"[LLM] Using Deepseek ({settings.DEFAULT_DEEPSEEK_MODEL})")
-    else:
-        # mock 兜底：API key 缺失或显式 provider=mock
-        client = MockLLMClient()
-        print(f"[LLM] Using MockLLMClient (provider={provider}, has_key={bool(settings.DEEPSEEK_API_KEY)})")
-    set_llm_client(client)
+    primary = _build_provider(settings.LLM_PRIMARY)
+    backup = _build_provider(settings.LLM_BACKUP) if settings.LLM_BACKUP else None
+
+    if primary is None:
+        print(f"[LLM] primary={settings.LLM_PRIMARY} not available; falling back to Mock")
+        set_llm_client(MockLLMClient())
+        return
+
+    if backup is None:
+        print(f"[LLM] primary={settings.LLM_PRIMARY} (no backup); single provider mode")
+        set_llm_client(primary)
+        return
+
+    router = LLMRouter(primary=primary, backup=backup)
+    print(f"[LLM] Router: primary={settings.LLM_PRIMARY}({settings.DEFAULT_DEEPSEEK_MODEL if settings.LLM_PRIMARY == 'deepseek' else '...'}) + backup={settings.LLM_BACKUP}")
+    set_llm_client(router)
 
 
 # ===== 健康检查 =====

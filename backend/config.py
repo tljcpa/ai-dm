@@ -19,16 +19,20 @@ class Settings(BaseSettings):
     # 数据库
     DATABASE_URL: str = "sqlite:///./app.db"
 
-    # LLM Provider API Keys（Day 2 启用）
+    # LLM Provider API Keys
     ANTHROPIC_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
     DEEPSEEK_API_KEY: str = ""
+    ZHIPU_API_KEY: str = ""
 
-    # 可选: mock / deepseek / claude / openai / gemini
-    DEFAULT_LLM_PROVIDER: str = "deepseek"
+    # 路由主备配置（亮点 ④）：primary 调用，失败时切 backup
+    LLM_PRIMARY: str = "deepseek"       # 默认主 provider
+    LLM_BACKUP: str = "zhipu"           # 备用 provider（主挂时自动切）
+
     DEFAULT_CLAUDE_MODEL: str = "claude-opus-4-7"
     DEFAULT_DEEPSEEK_MODEL: str = "deepseek-chat"
+    DEFAULT_ZHIPU_MODEL: str = "glm-4-flash"  # glm-4-flash 速度快、便宜，适合 demo
 
     # CORS
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
