@@ -308,4 +308,44 @@
 
 ---
 
-（Day 4 起新决策按 D-020、D-021 …继续追加）
+## D-020 · 不用 ChromaDB，自写内存向量索引（亮点 ⑤ RAG）
+
+- **决策**：RAGIndex 自写，内存 numpy 余弦相似度，pickle 持久化。**不引入 ChromaDB/Qdrant**
+- **备选**：
+  - A. ChromaDB（最主流的本地向量库）
+  - B. Qdrant（更强大但需服务进程）
+  - C. （选中）自写内存索引
+- **理由**：
+  - **规模匹配**：15 段世界观文档，O(N) 余弦搜索 < 1ms，根本不需要 ANN 索引
+  - **最小依赖原则**：减少一个依赖（D-006 / D-019 同源），ChromaDB 装包带 onnx + sentence-transformers 共 ~200MB
+  - **面试讲点**：能讲"我自己实现了 RAG 核心（embedding + cosine + top-k + 归一化 + pickle 持久化）"，比"我用了 ChromaDB"贵 10 倍——前者证明你懂底层，后者只证明你会查文档
+  - **持久化简单**：pickle 文件 148KB，重启秒级加载；改文档时自动检测 mtime 重建
+- **什么情况下改**：
+  - 文档数 >1000：考虑 ChromaDB / Qdrant 的 ANN 索引（HNSW 等）
+  - 需要多用户隔离的知识库：换 Qdrant 加 collection 概念
+  - 需要混合检索（向量+关键词）：考虑 Weaviate
+
+---
+
+## D-021 · 嵌入用智谱 embedding-3，不用本地 BGE
+
+- **决策**：嵌入模型用智谱 embedding-3（API 远程调用，2048 维）
+- **备选**：
+  - A. OpenAI text-embedding-3-small（最主流但 wly 还没有 key）
+  - B. 本地 BGE-zh / m3e（开源中文嵌入模型）
+  - C. （选中）智谱 embedding-3
+- **理由**：
+  - 服务器内存仅 1.0GB 可用——**装不下本地模型**（BGE 模型 ~500MB + 推理时占 ~1.5GB）
+  - 智谱中文表现好（embedding-3 是 2024 新模型，中文 benchmark 排前列）
+  - 远程调用让本机/服务器都能跑，零本地推理资源
+  - 用 wly 已有的智谱 key（D-017 同 provider），复用基础设施
+- **代价**：
+  - 每次 query 多一次智谱 API 调用（~500ms-1s）
+  - 实测延迟从 2.4s → 3.1-3.5s（+1s）——可接受
+- **什么情况下改**：
+  - 服务器内存升级 ≥ 4GB → 本地 BGE 省去远程调用 + 数据不出本地
+  - 需要 batch 大量嵌入（如离线分析）→ 用本地或换更便宜的 embedding API
+
+---
+
+（Day 5 起新决策按 D-022、D-023 …继续追加）

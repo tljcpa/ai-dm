@@ -270,10 +270,91 @@ Game.tsx 有 ~350 行，里面有 4 个内部组件（ChatBlock / PlayerPanel / 
 
 ---
 
-## 后续 Day 4-7 计划
+## Day 4 工作流回顾（RAG 世界观知识检索）
 
-- Day 4：存档系统打磨（多 session 列表 ✓ 已做 / 切换 ✓ 已做 / 删除 ✓ 已做）+ 可选 RAG
-  - 实际上 Day 3 前端已经实现了存档列表 / 切换 / 删除——Day 4 主要做 RAG 或质量打磨
+### 这一天发生了什么
+
+1. **wly 选 B：加 RAG**（之前 plan 是可选）
+2. **RAG 用途选型**：3 选 1，选"世界观 RAG"（不选 NPC 个人知识因和 L1 卡片重叠，不选玩家行为 RAG 因复杂 ROI 低）
+3. **嵌入端点验证**：智谱 embedding-3 兼容 OpenAI 协议，2048 维 PASS
+4. **反转 1：不用 ChromaDB**——自写内存索引 ~30 行核心（D-020）
+5. **写 16 段世界观文档**：4 地理 / 2 历史 / 1 宗教 / 3 传说 / 1 经济 / 1 魔法 / 1 生物 / 2 风俗 / 1 DM 元指南
+   - 关键设计：legend_missing_adventurer 把卖菜老妇卡片 secret（失踪儿子）扩展进世界观，让 RAG 检索"家人/失踪"时能让两个 NPC 的剧情形成回声
+6. **rag.py 实现**：ZhipuEmbedder + RAGIndex（add/query/save/load）+ build_world_lore_index（自动缓存）
+7. **集成到 prompts.py**：set_rag_index() + build_dm_prompt 检索 top-3 注入
+8. **集成到 main.py**：startup 自动构建索引（缓存到 data/rag_index.pkl）
+9. **bug：numpy 没在 requirements.txt**——补一行 + 重装
+
+### Day 4 的关键判断
+
+**判断 1：自写向量索引而非 ChromaDB**
+- 15 文档 O(N) < 1ms 不需要 ANN
+- 自写 30 行让面试能讲底层（D-020）
+- 最小依赖原则的延续（D-006 / D-019 同源）
+
+**判断 2：嵌入用智谱 API 而非本地 BGE**
+- 服务器内存 1G 装不下本地模型（D-021）
+- 智谱 embedding-3 中文质量好
+- 复用 wly 已有的智谱 key（D-017 同 provider）
+
+**判断 3：世界观文档设计要与 NPC 卡片"对位"**
+- legend_missing_adventurer 呼应卖菜老妇 secret
+- legend_hero_blade 呼应铁匠"绝霜剑执念"
+- 这样 RAG 检索结果能让 NPC 表现更深层、剧情线索可拼
+
+**判断 4：RAG 失败时优雅降级**
+- 智谱 API 短暂故障不让游戏崩
+- try/except 包检索调用，失败时仅打日志、不注入 RAG 块
+- 这是"高可用工程"思维（与 D-016 解析兜底同源）
+
+### CC 在 Day 4 的表现观察
+
+- **优点**：rag.py 设计干净（ABC-like Embedder + 单类 RAGIndex），自动缓存机制完善（mtime 检测）
+- **bug**：忘记把 numpy 加进 requirements.txt——通过测试报错发现，5 秒修复
+- **教训**：写完模块要单独 `pip install -r requirements.txt --dry-run` 验证依赖闭包
+
+### Day 4 实测数据（这是面试材料）
+
+| 维度 | 数据 |
+|---|---|
+| 世界观文档数 | 16 段（~4500 字总文本） |
+| Embedding 维度 | 2048（智谱 embedding-3） |
+| Index 文件大小 | 148 KB（pickle 持久化） |
+| RAG 检索延迟 | 0.5-1s（含 query embedding API） |
+| 总回合延迟（加 RAG） | 3.1-3.5s（vs 不加 RAG 2.4s，+~1s） |
+| 检索语义准确率 | 4/4 query 都精准命中相关文档 |
+| **关键观察** | "家人"召回"失踪儿子"——真语义理解，不是关键字匹配 |
+
+### LLM 引用世界观的具体例子（面试演示用）
+
+| 玩家问 | LLM 引用 | 来源文档 |
+|---|---|---|
+| 矿洞怪声 | "金属敲击声/喘气/人说话"三种猜测 + "封了两百年塌方" | `legend_mine_noises.txt` |
+| 你有失踪家人吗 | 老妇沉默+反问 | `legend_missing_adventurer` + 卡片 secret 双注入 |
+| 绝霜剑 | 铁匠锤子停半空、转身、直勾勾盯着 | `legend_hero_blade` + 卡片 dont_do 反向约束 |
+
+---
+
+## 用 CC 的几个具体技巧（Day 4 新增）
+
+### 技巧 12：RAG 文档要和 NPC 卡片"对位设计"
+
+第一次设计世界观时容易写"独立的世界设定"。
+但如果 RAG 文档和 NPC 卡片设定有"对位"——比如 legend 提到的失踪冒险者和 NPC 卡片的 secret 是同一个人——
+LLM 会在检索时"自然"地把两个信号关联起来，剧情纵深感大幅提升。
+**反例**：纯粹的"世界百科"，与 NPC 完全独立——RAG 召回了也只是补背景，无法推进 NPC 互动。
+
+### 技巧 13：自写小工具比引大依赖更值钱
+
+15 个文档要做向量检索，主流做法是装 ChromaDB（200MB+ 依赖）。
+但 numpy 余弦 + 排序 = 30 行核心代码。
+**面试官眼中**：能自己实现 = 懂底层；只会调包 = 中级开发的天花板。
+**反例**：为了"看起来主流"装一堆开箱即用库，最后讲解时讲不出每个库做什么。
+
+---
+
+## 后续 Day 5-7 计划
+
 - Day 5：部署上线（systemd + Nginx + certbot + 服务器现状已探测）
   - 含真实 UI 浏览器测试
 - Day 6：这份文档的最终版 + Demo 录屏（含"现场用 CC 加功能"）
