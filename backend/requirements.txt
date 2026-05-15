@@ -1,0 +1,23 @@
+# Web 框架
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+
+# 数据库 ORM（用 2.x 新风格）
+SQLAlchemy==2.0.36
+
+# 鉴权
+bcrypt==4.2.1
+python-jose[cryptography]==3.3.0
+
+# Pydantic（FastAPI 依赖，显式锁定）
+pydantic==2.10.3
+pydantic-settings==2.7.0
+
+# LLM Provider SDK
+anthropic==0.42.0
+# openai SDK 同时用于 OpenAI 和 Deepseek（Deepseek 兼容 OpenAI 协议）
+openai==1.58.1
+
+# 工具
+python-dotenv==1.0.1
+python-multipart==0.0.20
