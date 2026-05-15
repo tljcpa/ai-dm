@@ -21,3 +21,4 @@ openai==1.58.1
 # 工具
 python-dotenv==1.0.1
 python-multipart==0.0.20
+numpy>=1.26

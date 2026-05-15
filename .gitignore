@@ -31,6 +31,10 @@ env/
 *.sqlite
 *.sqlite3
 
+# RAG 缓存（pickle 文件，重启时按需重建）
+*.pkl
+backend/data/
+
 # 日志
 *.log
 logs/
@@ -40,6 +44,7 @@ node_modules/
 dist/
 build/
 .next/
+*.tsbuildinfo
 
 # 操作系统
 .DS_Store
