@@ -348,4 +348,39 @@
 
 ---
 
-（Day 5 起新决策按 D-022、D-023 …继续追加）
+## D-022 · 兼容 Python 3.8（typing_extensions.Annotated + 大写 typing 泛型）
+
+- **决策**：项目代码兼容 Python 3.8+；用 `from typing_extensions import Annotated` 替代 `from typing import Annotated`；类型注解全部用 `List` / `Tuple` / `Dict` 大写写法（不用 PEP 585 lowercase）
+- **背景**：本机 Python 3.10 写代码不假思索用了 3.9+ 语法，部署到服务器 Python 3.8 翻车
+- **备选**：
+  - A. 服务器装 Python 3.10+（apt/conda/pyenv）—— 系统级改动，可能影响其他项目
+  - B. （选中）代码兼容 Python 3.8
+  - C. Docker 化（带固定 Python 版本）—— 服务器内存 1G 不允许
+- **理由**：
+  - 服务器跑着 4+ 个其他项目，不动 Python 版本风险最小
+  - typing_extensions 是 pydantic 自动依赖，零增量
+  - 用大写 `List[X]` 写法是 Python 3.5 ~ 3.12 全兼容
+- **教训**：在多版本环境下开发 / 部署的项目，应该用 CI 跑 lint 检查 PEP 585 / PEP 604 兼容性（本项目时间窗内未加 CI）
+- **什么情况下改**：服务器升级到 Python 3.10+ 后可以 unfreeze（但没必要）
+
+---
+
+## D-023 · certbot 用 snap 装，不用 Ubuntu 20.04 仓库版
+
+- **决策**：服务器 `snap install --classic certbot` + `ln -sf /snap/bin/certbot /usr/bin/certbot`
+- **背景**：`apt install certbot` 装的是 0.40.0（2019 版），与新版 cryptography 库 API 不兼容（`X509_V_FLAG_NOTIFY_POLICY` 已被移除），跑 `certbot --nginx` 直接 AttributeError
+- **备选**：
+  - A. apt install（Ubuntu 20.04 仓库版） —— 0.40.0 已废，跑不通
+  - B. （选中）snap install —— certbot 官方推荐
+  - C. pip install certbot（独立 venv）—— 维护麻烦
+  - D. 用 acme.sh 等替代方案 —— 无 Python 依赖但学习成本
+- **理由**：
+  - certbot 5.6.0 (snap) vs 0.40.0 (apt)：差 6 年的版本，安全补丁 + bug 修复差异巨大
+  - snap 装的 certbot 由 Certbot Project 官方维护，自动更新
+  - certbot.timer 自动续期 + ISRG 证书 + nginx 自动配 HTTPS 重定向，一条命令全搞定
+- **教训**：Ubuntu LTS 仓库虽稳但对快速演进的工具（certbot / nodejs / python / docker）来说太老。优先评估官方推荐安装方式
+- **什么情况下改**：服务器不允许 snap → 用 pip install certbot 在独立 venv
+
+---
+
+（Day 6 起新决策按 D-024、D-025 …继续追加）

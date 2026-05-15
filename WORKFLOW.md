@@ -353,12 +353,90 @@ LLM 会在检索时"自然"地把两个信号关联起来，剧情纵深感大�
 
 ---
 
-## 后续 Day 5-7 计划
+## Day 5 工作流回顾（部署上线）
 
-- Day 5：部署上线（systemd + Nginx + certbot + 服务器现状已探测）
-  - 含真实 UI 浏览器测试
-- Day 6：这份文档的最终版 + Demo 录屏（含"现场用 CC 加功能"）
-- Day 7：简历描述 + 30 分钟讲述脚本 + 20 条 Q&A 预案
+### 这一天发生了什么
+
+1. **域名选择**：wly 让我起前缀，我选 `aidm`（短、对应项目代号）；主域名 `zdwktlj.top` 由 wly 提供
+2. **DNS 检查**：第一次 dig 没解析（wly 还没配 A 记录）；20 分钟后已生效
+3. **部署 9 步**：本机 build → rsync → venv → .env → systemd → nginx → 启动 → DNS → HTTPS
+4. **坑 1：Python 3.8 vs 3.10**（D-022）—— 本机用 PEP 585/604 写法在服务器报错
+5. **坑 2：certbot 0.40 (apt)** 与新 OpenSSL API 不兼容（D-023）—— 改 snap 装搞定
+6. **HTTPS 上线**：`https://aidm.zdwktlj.top` 公网可访问，Let's Encrypt 证书到 2026-08-13
+
+### Day 5 的关键判断
+
+**判断 1：本机 build 前端，不在服务器装 node_modules**
+- 服务器内存 1G，节省 ~200 MB node_modules
+- vite build 产物只有 172 KB JS + 10 KB CSS，rsync 几秒
+- 服务器零 node 依赖
+
+**判断 2：不影响其他项目**
+- 端口选 9001（避开服务器已用 22/80/5432/8000/8080/8501/10227/11111/11112/20001）
+- 项目目录 /root/ai-dm（独立）
+- 用 SQLite 不动现有 Postgres
+- Nginx 加 site 不动 existing 配置（aihub/cad-agent/partner-cashier）
+
+**判断 3：API key 复用开发期（wly 同意）**
+- 生产 .env 复用 Deepseek + Zhipu key
+- 仅 JWT SECRET_KEY 重新生成（用 openssl rand -hex 32）
+- 简化部署、可接受的安全权衡（demo 项目无敏感数据）
+
+**判断 4：把部署文件 ai-dm.service / ai-dm.nginx 副本入库**
+- 服务器上 /etc/... 不在 git 范围
+- 副本放 `deploy/` 目录入库，面试官 clone 能看完整部署链路
+- deploy/README.md 详细记录 9 步骤 + 2 个坑
+
+### CC 在 Day 5 的表现观察
+
+- **优点**：rsync exclude 列表合理（venv / __pycache__ / .env / app.db / data）；systemd / nginx 配置一次写对
+- **bug**：第一次用 here-doc 写 nginx 配置时 `$uri` 被 bash 转义；改用 scp 上传修正
+- **关键反应**：服务器 Python 3.8 翻车后快速诊断 + grep 所有 PEP 585 用法 + 批量改回大写 typing
+- **教训**：CC 写代码默认用最新 Python 语法；多版本环境项目要在 prompt 中明示"目标 Python 版本"
+
+### Day 5 实测数据（面试材料）
+
+| 维度 | 数据 |
+|---|---|
+| 上线域名 | https://aidm.zdwktlj.top |
+| 服务器内存占用（ai-dm.service） | ~80 MB（uvicorn 单 worker + RAG 索引）|
+| 单回合延迟（生产） | 3.5-5s（含 RAG embed + LLM + Nginx 反代）|
+| 部署总耗时 | ~40 分钟（含 2 个坑的修复）|
+| 证书有效期 | 2026-08-13（90 天，certbot.timer 自动续期）|
+| HTTP→HTTPS 301 | certbot --redirect 自动配 |
+
+---
+
+## 用 CC 的几个具体技巧（Day 5 新增）
+
+### 技巧 14：本机/服务器不同 Python 版本是常见坑
+
+CC 默认用最新 Python 语法（list[X] / Annotated / X | Y）。
+**部署前必须 grep 检查**："PEP 585 lowercase generics" + "Annotated from typing" + "X | Y union"。
+本项目 Day 5 因为没提前检查，到部署才暴露，多花了 15 分钟。
+**预防**：本机 venv 用目标服务器同版本 Python（pyenv 切换），或者 CI 跑 mypy --python-version 3.8 检查。
+
+### 技巧 15：Ubuntu LTS 仓库的某些工具版本太老
+
+certbot / nodejs / python / docker 这类快速演进的工具，Ubuntu LTS 仓库版本和上游差距可能 3-5 年。
+**优先用官方推荐安装方式**：certbot 官方推荐 snap、node 官方推荐 nvm 或 nodesource、docker 官方推荐 docker-ce 仓库。
+**反例**：盲目 `apt install certbot` → 0.40.0 直接报 OpenSSL API 兼容性错误。
+
+### 技巧 16：部署配置入库（deploy/ 目录）
+
+服务器上 /etc/systemd/ 和 /etc/nginx/ 不在 git 范围，但**部署配置是项目的一部分**。
+建一个 `deploy/` 目录放副本：
+- `ai-dm.service`（systemd 单元文件）
+- `ai-dm.nginx`（nginx 站点配置）
+- `README.md`（部署步骤说明）
+**面试时**：面试官 clone 仓库能看到完整部署链路，证明你不是"只会写代码、不会部署"的开发者。
+
+---
+
+## 后续 Day 6-7 计划
+
+- Day 6：录 3-5 分钟 demo 视频（含"现场用 CC 加功能"杀招）+ WORKFLOW.md 终稿
+- Day 7：简历项目描述（4-6 行）+ 30 分钟讲述脚本 + 20 条 Q&A 预案
 
 ---
 
