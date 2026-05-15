@@ -121,16 +121,88 @@ CC 卡住时不要让它继续猜，应该退一步：
 
 ---
 
-## 后续 Day 2-7 计划（节选）
+## Day 2 工作流回顾
 
-- Day 2：三亮点（NPC 一致性 / 结构化输出兜底 / 越狱防御）+ provider 抽象（核心日）
-- Day 3：前端 React + SSE 流式
-- Day 4：存档系统打磨（+ 可选 RAG）
-- Day 5：部署上线（systemd + Nginx + certbot）
-- Day 6：这份文档的最终版 + Demo 录屏
+### 这一天发生了什么
+
+1. **wly 决定不休息直接进 Day 2**（精力还在）
+2. **顺序选择**：① NPC 一致性（最大卖点，精力最足时做） → ③ 越狱防御 → ② 结构化输出兜底 → ④ Provider 路由（等第二个 key）
+3. **亮点 ① NPC 一致性三层注入**：写 3 个 NPC 角色卡 JSON（旅店老板/卖菜老妇/铁匠），改 prompts.py 注入，加 summarize_history 每 5 回合摘要
+4. **演示彩蛋意外**：测试中 LLM 自发"老板下意识看了老妇一眼"——LLM 真读懂了卡片 secret 字段
+5. **亮点 ③ 越狱防御**：新建 safety.py，L1 正则 14 条 + L3 输出审计 5 条 + 故事化兜底叙事
+6. **亮点 ② 结构化输出兜底**：parse_with_fallback 三层（L1 直接 / L2 LLM 修正 / L3 启发式）
+7. **wly 临时给 Zhipu key**（Day 2 末期）→ 实现亮点 ④ 多 Provider 路由
+8. **Deepseek vs Zhipu 同输入对比**：拿到延迟、风格的真实数据
+9. **DECISIONS.md 追加 D-012 ~ D-017**
+
+### Day 2 的关键判断
+
+**判断 1：NPC 卡片用 JSON 文件，不用 Python 字典**
+- 体现"prompt 是项目资产"——和 system_dm.txt 同源理念（D-013）
+- 改 NPC 不用动代码、面试时能给面试官看实物
+
+**判断 2：越狱防御兜底要叙事化，不出戏**
+- "一阵冷风吹过"远胜"违规输入"
+- 让玩家觉得是世界在拒绝，不是系统在拒绝（D-015）
+
+**判断 3：兜底是给面试官看的，不是日常会触发**
+- response_format=json_object 在 Deepseek 99.x% 成功
+- 但切到 Claude 或便宜小模型时兜底必要
+- "防御性编程"作为面试材料价值大于实际触发率（D-016）
+
+**判断 4：Router 不重构 providers.py 包**
+- 直接在 engine.py 加 ZhipuProvider + LLMRouter
+- 1 周项目不为"美感"重构、不留半成品
+
+### CC 在 Day 2 的表现观察
+
+- **优点**：并行多文件改、抽象设计合理（LLMRouter 继承 LLMClient 让上层无感）
+- **bug**：safety.py 字符串里嵌 ASCII 双引号导致 SyntaxError（用中文引号修正）
+- **可改进**：第一版 prompt 没考虑到"玩家行动 vs 历史"的区分（Day 1 mock 同类 bug），需要测试 driven 改
+
+### Day 2 实测数据（这是面试材料）
+
+| 维度 | 数据 |
+|---|---|
+| Deepseek V3 延迟 | 普通回合 2.2-2.4s / 含摘要回合 3.75s |
+| Zhipu glm-4-flash 延迟 | 11.5s（首次冷启动 + 模型本身慢，后续可能优化） |
+| 越狱拦截延迟 | 0.02s（regex 前置，不调 LLM） |
+| 越狱拦截成功率 | 4/4（中文经典、英文经典、角色顶替、开发者模式） |
+| JSON 兜底单元测试 | 5/5（L1 主路径 / L2 修正 / L3 启发式 / 全失败兜底 / 嵌入式 JSON 抽取） |
+| Router fallback 测试 | 3/3（A 主失败 B 接管 / B 无 backup 时抛 / C 主正常时 B 不浪费） |
+| **重要发现**：Zhipu 比 Deepseek 慢 5 倍 | 这成为"为什么默认 Deepseek 而 Zhipu 仅做 backup"的实测依据 |
+
+---
+
+## 用 CC 的几个具体技巧（Day 2 新增）
+
+### 技巧 6：先写抽象层，再写第二个实现
+
+Day 1 第一次接入 Deepseek 时，已经预留了 LLMClient ABC。
+Day 2 加 Zhipu Provider 时只用了 5 分钟——因为接口已定。
+**反例**：先写一个 hardcode 的实现，第二个 provider 来时再重构——成本高 3-5 倍。
+
+### 技巧 7：单元测试 + 端到端测试都要
+
+- 单元测试：mock LLM 验证 L1/L2/L3 兜底各自走通
+- 端到端：真 LLM 验证 happy path 不退化
+两种缺一不可——单元测试能跑通不代表生产能跑，端到端能跑通不代表边界都覆盖。
+
+### 技巧 8：实测对比胜过抽象描述
+
+简历上写"我用了多 provider 路由"是空话。
+"我实测 Deepseek 2.4s + 写实风格 vs Zhipu 11.5s + 文学风格，所以选 Deepseek 做主"——是硬话。
+**面试讲述脚本应该全部带数字**。
+
+---
+
+## 后续 Day 3-7 计划
+
+- Day 3：前端 React + SSE 流式 + 3 个页面（登录/注册/游戏）
+- Day 4：存档系统打磨（多 session 列表 / 切换 / 删除）+ 可选 RAG
+- Day 5：部署上线（systemd + Nginx + certbot + 服务器现状已探测）
+- Day 6：这份文档的最终版 + Demo 录屏（含"现场用 CC 加功能"）
 - Day 7：简历描述 + 30 分钟讲述脚本 + 20 条 Q&A 预案
-
-每一天的关键决策和 CC 协作观察都会追加进本文件。
 
 ---
 
