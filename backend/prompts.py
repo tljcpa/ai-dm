@@ -3,12 +3,16 @@
 ==========
 - 所有 prompt 实物存在 prompts/*.txt 文件，便于版本控制、diff、面试时翻给面试官看
 - NPC 角色卡存在 prompts/npc_cards/*.json，prompt 注入时按 present_npcs 加载对应卡片
+- 世界观文档在 world_lore/*.txt，RAG 检索后注入（亮点 ⑤）
 - 本模块负责加载、缓存、注入 state 拼装最终 prompt
 
 亮点 ① NPC 一致性三层注入：
   L1 角色卡（静态）：load_npc_card() + format_npc_card_for_prompt()
   L2 长期摘要（动态）：在 engine.py 的 summarize_history() 生成，注入到 state.long_term_summary
   L3 短期对话窗口（滑动）：state.recent_history
+
+亮点 ⑤ 世界观 RAG：
+  set_rag_index() 由 main.py startup 注入；build_dm_prompt 自动检索 top-3 注入
 """
 
 import json
@@ -17,6 +21,15 @@ from pathlib import Path
 from typing import Optional
 
 from state import GameState
+
+# 由 main.py startup 注入；None 表示 RAG 未启用
+_rag_index: Optional["RAGIndex"] = None  # noqa: F821 (避免在模块导入时强制 import rag)
+
+
+def set_rag_index(idx) -> None:
+    """注入 RAG 索引（亮点 ⑤）。idx 应为 rag.RAGIndex 实例或 None。"""
+    global _rag_index
+    _rag_index = idx
 
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
@@ -91,10 +104,16 @@ def build_dm_prompt(state: GameState, user_input: str) -> tuple[str, str]:
 
     设计：
     - system_prompt 来自 prompts/system_dm.txt（角色、规则、输出格式）
-    - user_message 包含：state 紧凑表示 + L1 NPC 卡片 + L2 长期摘要 + L3 短期对话 + 玩家本次输入
+    - user_message 包含：
+        state 紧凑表示
+        + L1 NPC 卡片（亮点 ①）
+        + RAG 世界观检索（亮点 ⑤，用本回合输入做 query 召回 top-3）
+        + L2 长期摘要（亮点 ①）
+        + L3 短期对话（亮点 ①）
+        + 玩家本次输入
     - state 写在 user 侧（每回合变化）：保持 system_prompt 静态便于 prompt cache
 
-    亮点 ① NPC 一致性三层注入在这里拼装。
+    亮点 ① + ⑤ 在这里拼装。
     """
     system_prompt = load_prompt("system_dm")
 
@@ -122,6 +141,20 @@ def build_dm_prompt(state: GameState, user_input: str) -> tuple[str, str]:
     if npc_blocks:
         state_block += "\n【在场 NPC 详细资料】（严格按这些资料扮演，不要让 NPC 越界）\n"
         state_block += "\n\n".join(npc_blocks) + "\n"
+
+    # ===== 亮点 ⑤ RAG 世界观检索注入 =====
+    # 用本回合玩家输入做 query，从 world_lore/*.txt 召回 top-3 相关文档
+    # 若 RAG 未启用（_rag_index is None）则跳过——优雅降级
+    if _rag_index is not None and user_input.strip():
+        try:
+            from rag import format_rag_results_for_prompt
+            results = _rag_index.query(user_input, top_k=3)
+            if results:
+                rag_block = format_rag_results_for_prompt(results)
+                state_block += "\n" + rag_block + "\n"
+        except Exception as e:
+            # RAG 失败不影响主回合（如智谱 API 短暂故障）
+            print(f"[rag] query failed: {type(e).__name__}: {e}")
 
     # ===== L2 长期记忆摘要注入 =====
     if state.long_term_summary:

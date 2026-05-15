@@ -18,6 +18,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from pathlib import Path
+
 import auth
 from config import settings
 from db import GameSession, User, get_db, init_db
@@ -30,6 +32,7 @@ from engine import (
     play_turn,
     set_llm_client,
 )
+from prompts import set_rag_index
 from state import GameState, default_state
 
 
@@ -53,11 +56,34 @@ app.include_router(auth.router)
 
 
 # 启动时建表（开发期友好；生产应该走 alembic migration）
-# 启动时同时根据 settings 选择 LLM client
+# 启动时同时根据 settings 选择 LLM client 并构建 RAG 索引
 @app.on_event("startup")
 def on_startup():
     init_db()
     _select_llm_client()
+    _build_rag_index()
+
+
+def _build_rag_index():
+    """
+    亮点 ⑤ 启动时构建世界观 RAG 索引。
+    没有 ZHIPU_API_KEY 时跳过（_rag_index 保持 None，build_dm_prompt 优雅降级）
+    """
+    if not settings.ZHIPU_API_KEY:
+        print("[RAG] ZHIPU_API_KEY not set; RAG disabled")
+        return
+    try:
+        from rag import ZhipuEmbedder, build_world_lore_index
+        backend_dir = Path(__file__).parent
+        lore_dir = backend_dir / "world_lore"
+        cache_path = backend_dir / "data" / "rag_index.pkl"
+        embedder = ZhipuEmbedder(api_key=settings.ZHIPU_API_KEY, model="embedding-3")
+        idx = build_world_lore_index(lore_dir, cache_path, embedder)
+        set_rag_index(idx)
+        print(f"[RAG] enabled with {len(idx)} world lore docs")
+    except Exception as e:
+        # RAG 启动失败不阻塞 server 启动——优雅降级到无 RAG 模式
+        print(f"[RAG] startup failed: {type(e).__name__}: {e}; running without RAG")
 
 
 def _build_provider(name: str) -> Optional[LLMClient]:
